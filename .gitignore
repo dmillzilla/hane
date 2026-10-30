@@ -1,4 +1,5 @@
 /hane
+/hane.update.lock
 /.cache/
 /dist/
 *.test
