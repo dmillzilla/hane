@@ -1,0 +1,20 @@
+/hane
+/.cache/
+/dist/
+*.test
+coverage.out
+.DS_Store
+
+# Local configuration, mail stores, and credentials must stay private.
+.env
+.env.*
+!.env.example
+accounts.json
+mail.json
+mail.json.lock
+bitwarden-cli/
+*.keyring
+*.key
+*.pem
+*.p12
+*.pfx

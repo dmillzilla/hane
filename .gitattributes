@@ -1,0 +1,2 @@
+# Terminal captures retain spaces to preserve their screen dimensions.
+docs/*.ansi -whitespace
