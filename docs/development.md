@@ -57,3 +57,11 @@ Each archive contains only a `hane` executable. Asset names follow `hane_VERSION
 `hane update` runs before the app opens its accounts or mail store. It requests the latest stable release from `dmillzilla/hane`, compares numeric versions, selects the matching platform archive, and verifies the archive against the release's SHA-256 manifest.
 
 The updater resolves symlinks, locks the target against simultaneous updates, writes a temporary executable in the same directory, then atomically renames it into place. A download, checksum, unpacking, permission, or cancellation failure leaves the old executable in place. It also refuses to overwrite a binary replaced by another installer while the download was in progress. System-owned installs require reinstalling with suitable permissions; the updater does not elevate privileges.
+
+## Changes to main
+
+Open a pull request for every change to `main`, including administrator changes. Both Linux and macOS CI checks must pass against the latest base branch, and review conversations must be resolved. Force pushes and deletion of `main` are blocked.
+
+David (`@dmillzilla`) owns all files through `.github/CODEOWNERS`. Non-admins need one approving code-owner review; new reviewable commits dismiss stale approvals. Repository admins can explicitly bypass the review requirement when merging a PR, including their own PRs. That exception does not bypass the PR requirement, CI checks, or conversation resolution.
+
+GitHub applies bypass permission to the person merging, rather than to the PR author. Admins should approve contributor PRs before merging; the review bypass exists so admin-authored PRs do not need self-approval.
