@@ -1,6 +1,6 @@
 # Hane
 
-Email in your terminal, with Vim-style navigation.
+A TUI email client with Vim-style navigation.
 
 Read conversations, manage multiple accounts, write replies, and keep drafts between sessions. Hane connects to IMAP and SMTP servers, including iCloud and Gmail with app passwords.
 
@@ -48,6 +48,8 @@ Use an app-specific password for [iCloud](https://support.apple.com/en-us/102525
 Want to try it first? Run `hane demo` for a sample inbox that never connects or sends mail.
 
 ## Everyday use
+
+Use these keys to navigate Hane's TUI:
 
 | Keys | Action |
 |---|---|
