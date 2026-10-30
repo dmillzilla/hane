@@ -156,7 +156,7 @@ func (m *model) connectAccount() tea.Cmd {
 	return func() tea.Msg {
 		if c.RememberPassword {
 			if store == nil {
-				return accountCheckMsg{id: id, err: &connectionProblem{"Local password", "Run hane --password-setup first."}}
+				return accountCheckMsg{id: id, err: &connectionProblem{"Local password", "Run hane passwords first."}}
 			}
 			var err error
 			password, err = store.Get(ctx, c)
@@ -244,7 +244,7 @@ func (m model) finishAccountCheck(msg accountCheckMsg) (tea.Model, tea.Cmd) {
 	f.focus = setupFields
 	f.message = "IMAP and SMTP sign-ins passed. Settings saved; your mail will sync automatically."
 	if !c.RememberPassword {
-		f.message += " Run hane --password-setup to remember this password through Bitwarden."
+		f.message += " Run hane passwords to remember this password through Bitwarden."
 	}
 	m.notice = "Account verified · settings saved"
 	return m, nil
@@ -510,7 +510,7 @@ func (m model) overlayAccountSetup(lines []string) []string {
 		title += " · " + mode
 	}
 	put(1, center(bold(title, cyan), inner))
-	subtitle := "Password setup: hane --password-setup"
+	subtitle := "Password setup: hane passwords"
 	if f.edit >= 0 && m.accounts[f.edit].Config.RememberPassword {
 		subtitle = "Leave App password blank to use your local keyring"
 	}

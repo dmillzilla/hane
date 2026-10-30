@@ -970,7 +970,7 @@ func (m *model) syncOnce(email string) error {
 		}
 		for step := 0; len(m.live.pending) > 0; step++ {
 			if step >= 8 {
-				return errors.New("Sync still has pending changes; run --sync-once again.")
+				return errors.New("Sync still has pending changes; run hane sync again.")
 			}
 			cmd := m.live.pending[0]
 			m.live.pending = m.live.pending[1:]

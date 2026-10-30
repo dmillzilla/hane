@@ -7,6 +7,7 @@ cmd/hane/           CLI entry point
 internal/app/       Terminal UI, accounts, mail, and credential handling
 internal/app/assets/ Embedded terminal logo
 internal/buildinfo/ Shared application version
+internal/cli/       Command parsing, option validation, and help
 internal/update/    Release discovery, verified downloads, atomic installation
 scripts/            Release packaging and screenshot rendering
 docs/               Usage guide and screenshots
@@ -44,6 +45,12 @@ make release
 ```
 
 Each archive contains only a `hane` executable. Asset names follow `hane_VERSION_OS_ARCH.tar.gz`; the updater and packaging script share that convention. Windows releases are not currently provided.
+
+## CLI behavior
+
+`cmd/hane` dispatches one action after `internal/cli` parses and validates the complete invocation. Options work before or after the command. Invalid combinations exit with status 2 before opening accounts, mail storage, or making update requests. An action failure exits with status 1; success and help exit with status 0.
+
+`internal/app` receives interactive options directly; it does not parse process-wide flags. Version and help commands use no mail settings. The private `__keyring` and `__passwords` subprocess entry points remain separate from public commands so keyring calls and the UI's password wizard keep working.
 
 ## Update behavior
 

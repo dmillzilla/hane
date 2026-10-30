@@ -2,7 +2,7 @@ package app
 
 import (
 	"context"
-	"flag"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -21,97 +21,83 @@ var version = buildinfo.Version
 // Keep the original storage namespace so upgrades share settings, mail, and locks.
 const storageNamespace = "sorakyaku"
 
-// Run starts the terminal client or its account-management helpers.
-func Run() {
-	if len(os.Args) > 1 && os.Args[1] == "__keyring" {
-		os.Exit(runKeyringHelper(os.Args[2:]))
-	}
-	offline := flag.Bool("offline", false, "read cached mail and edit drafts without background network access")
-	demo := flag.Bool("demo", false, "use fictional mail without network or persistent storage")
-	checkConnection := flag.Bool("check-connection", false, "verify IMAP and SMTP sign-in without sending mail")
-	syncOnce := flag.Bool("sync-once", false, "sync configured mail once and print counts only")
-	noSplash := flag.Bool("no-splash", false, "skip the opening animation")
-	passwords := flag.Bool("password-setup", false, "set up or refresh a Bitwarden-backed mail password")
-	account := flag.String("account", "", "email account for password setup or connection checks")
-	showVersion := flag.Bool("version", false, "print version")
-	flag.Usage = func() {
-		fmt.Fprintln(flag.CommandLine.Output(), "Usage: hane [options]\n       hane update\n\nOptions:")
-		flag.PrintDefaults()
-	}
-	flag.Parse()
-	if flag.NArg() != 0 {
-		fmt.Fprintln(os.Stderr, "Unknown command. Use hane --help for usage.")
-		os.Exit(2)
-	}
-	if *showVersion {
-		fmt.Println(appName, version)
-		return
-	}
-	if *passwords {
-		err := passwordSetup(*account)
-		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
-		}
-		_, _ = promptLine("Press Enter to return…")
-		if err != nil {
-			os.Exit(1)
-		}
-		return
-	}
+// Options modify the interactive mailbox. Actions are dispatched by the CLI.
+type Options struct {
+	Demo, Offline, NoSplash bool
+}
+
+// Run opens the terminal client with already validated options.
+func Run(options Options) error {
 	m := newModel(time.Now())
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	m.background = ctx
 	m.credentials = systemCredentials{}
-	if !*demo {
+	if !options.Demo {
 		m.loadAccounts()
-		if *checkConnection {
-			if err := m.verifyMailConnection(*account); err != nil {
-				fmt.Fprintln(os.Stderr, err)
-				os.Exit(1)
-			}
-			return
-		}
-		path, err := mailDataPath()
+		unlock, err := m.openMailStorage()
 		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
-			return
+			return err
 		}
-		if err = os.MkdirAll(filepath.Dir(path), 0700); err != nil {
-			fmt.Fprintln(os.Stderr, err)
-			return
-		}
-		lock := flock.New(path + ".lock")
-		ok, err := lock.TryLock()
-		if err != nil || !ok {
-			fmt.Fprintln(os.Stderr, "Another Hane instance is using mail storage. Close it before starting this one.")
-			return
-		}
-		defer lock.Unlock()
-		if err = m.initLive(path); err != nil {
-			fmt.Fprintln(os.Stderr, err)
-			return
-		}
-		m.live.offline = *offline
-		if *offline {
+		defer unlock()
+		m.live.offline = options.Offline
+		if options.Offline {
 			m.notice = "Offline · cached mail and local drafts"
 		}
-		if *syncOnce && *offline {
-			fmt.Fprintln(os.Stderr, "--sync-once cannot be used with --offline")
-			return
-		}
-		if *syncOnce {
-			if err := m.syncOnce(*account); err != nil {
-				fmt.Fprintln(os.Stderr, err)
-				os.Exit(1)
-			}
-			return
-		}
 	}
-	m.loading = !*noSplash
-	if _, err := tea.NewProgram(m).Run(); err != nil {
-		cancel()
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
+	m.loading = !options.NoSplash
+	_, err := tea.NewProgram(m).Run()
+	return err
+}
+
+// Sync synchronizes matching configured accounts once, without opening the UI.
+func Sync(email string) error {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	m := newModel(time.Now())
+	m.background, m.credentials = ctx, systemCredentials{}
+	m.loadAccounts()
+	unlock, err := m.openMailStorage()
+	if err != nil {
+		return err
 	}
+	defer unlock()
+	return m.syncOnce(email)
+}
+
+// Check verifies matching configured accounts without opening the mail store.
+func Check(email string) error {
+	m := newModel(time.Now())
+	m.credentials = systemCredentials{}
+	m.loadAccounts()
+	return m.verifyMailConnection(email)
+}
+
+// Passwords runs the interactive credential setup wizard.
+func Passwords(email string) error { return passwordSetup(email) }
+
+// Keyring is the private subprocess entry point used for bounded keyring calls.
+func Keyring(args []string) int { return runKeyringHelper(args) }
+
+func (m *model) openMailStorage() (func(), error) {
+	path, err := mailDataPath()
+	if err != nil {
+		return nil, err
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
+		return nil, err
+	}
+	lock := flock.New(path + ".lock")
+	ok, err := lock.TryLock()
+	if err != nil {
+		return nil, fmt.Errorf("lock mail storage: %w", err)
+	}
+	if !ok {
+		return nil, errors.New("Another Hane instance is using mail storage. Close it before starting this one.")
+	}
+	if err := m.initLive(path); err != nil {
+		_ = lock.Unlock()
+		return nil, err
+	}
+	return func() { _ = lock.Unlock() }, nil
 }

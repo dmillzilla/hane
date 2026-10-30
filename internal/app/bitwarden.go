@@ -144,7 +144,7 @@ func (b *bitwardenClient) get(ctx context.Context, id string, c AccountConfig) (
 }
 
 func (b *bitwardenClient) create(ctx context.Context, c AccountConfig, password string) (string, error) {
-	item := vaultItem{Type: 1, Name: "Hane · " + c.Email + " · App password", Notes: "Mail app password for Hane. Update this password here, then run hane --password-setup to refresh the local keyring copy."}
+	item := vaultItem{Type: 1, Name: "Hane · " + c.Email + " · App password", Notes: "Mail app password for Hane. Update this password here, then run hane passwords to refresh the local keyring copy."}
 	item.Login.Username, item.Login.Password = c.Email, password
 	data, _ := json.Marshal(item)
 	encoded := base64.StdEncoding.EncodeToString(data)
@@ -325,7 +325,7 @@ func (m model) launchPasswordSetup() (tea.Model, tea.Cmd) {
 		m.notice = "Cannot launch password setup."
 		return m, nil
 	}
-	cmd := exec.Command(self, "--password-setup", "--account", m.accounts[index].Address)
+	cmd := exec.Command(self, "__passwords", m.accounts[index].Address)
 	return m, tea.ExecProcess(cmd, func(err error) tea.Msg { return passwordSetupDone{err} })
 }
 

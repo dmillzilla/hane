@@ -2,4 +2,4 @@
 package buildinfo
 
 // Version can be set by release builds using -ldflags.
-var Version = "0.5.0"
+var Version = "0.6.0"

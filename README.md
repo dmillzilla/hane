@@ -45,7 +45,7 @@ hane
 
 Use an app-specific password for [iCloud](https://support.apple.com/en-us/102525) or an eligible [Gmail account](https://support.google.com/accounts/answer/185833?hl=en). OAuth-only accounts are not supported yet. To remember a password through Bitwarden and the local keyring, press **B** after adding the account.
 
-Want to try it first? Run `hane --demo` for a sample inbox that never connects or sends mail.
+Want to try it first? Run `hane demo` for a sample inbox that never connects or sends mail.
 
 ## Everyday use
 
@@ -80,17 +80,34 @@ Downloads the latest stable release for your operating system and processor, ver
 
 The install directory must be writable by your user; `~/.local/bin` works well. If Hane is installed in a system-owned directory, reinstall the new binary there with the appropriate permissions.
 
-## Useful commands
+## Commands and options
+
+Commands choose an action; options adjust that action. Combine compatible options in one invocation, before or after the command.
+
+| Command | Purpose | Options / aliases |
+|---|---|---|
+| `hane` | Open your mailbox | `--offline` / `-o`, `--no-splash` |
+| `hane demo` | Open sample mail | `--no-splash`; alias `-d` |
+| `hane version` | Print the installed version | Alias `-v` |
+| `hane update` | Install the latest stable release | |
+| `hane sync` | Sync once | `--account EMAIL` / `-a EMAIL` |
+| `hane check` | Check IMAP and SMTP sign-in | `--account EMAIL` / `-a EMAIL` |
+| `hane passwords` | Set up remembered passwords | `--account EMAIL` / `-a EMAIL` |
+| `hane help [command]` | Show help | Also `--help` / `-h` |
 
 ```sh
-hane --version
-hane --help
-hane --no-splash
-hane --offline
-hane --check-connection --account me@example.com
-hane --sync-once --account me@example.com
+hane --offline --no-splash
+hane demo --no-splash
+hane -d --no-splash
+hane sync -a me@example.com
+hane --account me@example.com check
+hane help passwords
 ```
 
-Connection checks and `--sync-once` do not send outgoing messages. Search covers downloaded mail; use **L** to load more. Attachments are listed but cannot yet be downloaded or attached, and composition is plain text. Drafts are stored locally rather than in the server's Drafts folder.
+`--account` limits `sync` or `check` to one account; without it, all configured accounts are used. The password wizard asks which account to use when needed. Commands run one at a time; use your shell to sequence them, such as `hane check && hane sync`.
+
+The previous `--demo`, `--version`, `--sync-once`, `--check-connection`, and `--password-setup` flags remain supported as command aliases.
+
+Connection checks and `hane sync` do not send outgoing messages. Search covers downloaded mail; use **L** to load more. Attachments are listed but cannot yet be downloaded or attached, and composition is plain text. Drafts are stored locally rather than in the server's Drafts folder.
 
 See [development](docs/development.md) for the source layout, tests, and release builds.

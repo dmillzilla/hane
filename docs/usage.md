@@ -106,7 +106,7 @@ Account setup starts in Normal mode: **j/k** moves fields, **gg/G** goes first/l
 - **Gmail:** app passwords are supported for eligible accounts with 2-Step Verification. OAuth-only accounts are not supported yet; see [Google's app-password requirements](https://support.google.com/accounts/answer/185833?hl=en).
 - **Custom:** IMAP over implicit TLS and SMTP password authentication with PLAIN inside TLS are supported.
 
-After connecting, **B** or `./hane --password-setup` opens the Bitwarden wizard. It uses a dedicated app-password login item whose username is your full email address. It can create that item or import a specific existing item ID. It does not search or export the rest of your vault.
+After connecting, **B** or `hane passwords` opens the Bitwarden wizard. It uses a dedicated app-password login item whose username is your full email address. It can create that item or import a specific existing item ID. It does not search or export the rest of your vault.
 
 The three password prompts serve different purposes:
 
@@ -142,4 +142,4 @@ Corrupt or unsupported mail storage is preserved and blocks startup instead of b
 - Message text downloads are limited to 1 MiB of encoded input shared across up to 16 text parts, and 2 MiB of decoded text. The reader labels truncated text. Very large or deeply malformed conversations stop at 500 referenced IDs / 12 lookup rounds with an incomplete-thread notice.
 - Polling runs once a minute; IMAP IDLE push is not implemented. Cached folders refresh flags/removals; newly arriving mail in other folders is downloaded when those folders are selected.
 - Linux is the tested platform. macOS binaries compile for Apple Silicon and Intel and use macOS Keychain, but runtime behavior still needs validation on a Mac. Windows has not been validated.
-- `--demo` retains the original session-only drafts and simulated sends. It never transmits mail.
+- `hane demo` retains the original session-only drafts and simulated sends. It never transmits mail.

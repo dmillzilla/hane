@@ -49,7 +49,7 @@ func keyringCommand(ctx context.Context, operation string, c AccountConfig, pass
 	cmd.Stdin = strings.NewReader(password)
 	data, err := cmd.Output()
 	if err != nil {
-		return "", errors.New("Local password unavailable. Unlock your system keyring, or run hane --password-setup.")
+		return "", errors.New("Local password unavailable. Unlock your system keyring, or run hane passwords.")
 	}
 	return string(data), nil
 }
@@ -114,7 +114,7 @@ func (m model) reconnectAccounts() tea.Cmd {
 			defer cancel()
 			password, err := store.Get(ctx, c)
 			if err == nil && password == "" {
-				err = errors.New("Saved password is empty. Run hane --password-setup.")
+				err = errors.New("Saved password is empty. Run hane passwords.")
 			}
 			if err == nil {
 				_, err = checkAccount(ctx, c, password)
