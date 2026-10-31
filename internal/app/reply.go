@@ -38,7 +38,7 @@ func (m model) replyThreadLines() []string {
 	if left == 0 {
 		left = m.width
 	}
-	return threadLines(m.replyThread(), max(8, left-4))
+	return m.threadImageLines(m.replyThread(), max(8, left-4))
 }
 
 func (m model) replyThreadVisible() int { return max(1, m.bodyHeight()-4) }

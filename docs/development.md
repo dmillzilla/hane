@@ -8,6 +8,7 @@ internal/app/       Terminal UI, accounts, mail, and credential handling
 internal/app/assets/ Embedded terminal logo
 internal/buildinfo/ Shared application version
 internal/cli/       Command parsing, option validation, and help
+internal/mailimage/ Bounded raster decoding, public HTTP fetching, terminal previews
 internal/update/    Release discovery, verified downloads, atomic installation
 scripts/            Release packaging and screenshot rendering
 docs/               Usage guide and screenshots
@@ -65,3 +66,15 @@ Open a pull request for every change to `main`, including administrator changes.
 David (`@dmillzilla`) owns all files through `.github/CODEOWNERS`. Non-admins need one approving code-owner review; new reviewable commits dismiss stale approvals. Repository admins can explicitly bypass the review requirement when merging a PR, including their own PRs. That exception does not bypass the PR requirement, CI checks, or conversation resolution.
 
 GitHub applies bypass permission to the person merging, rather than to the PR author. Admins should approve contributor PRs before merging; the review bypass exists so admin-authored PRs do not need self-approval.
+
+## Message images
+
+Normal IMAP reads index image MIME parts and an HTML alternative without fetching separate image parts or remote image URLs. The plaintext body is preserved, and a separate sanitized body retains image placeholders by message ID. Legacy mail cache entries gain this metadata when synced; the storage schema remains compatible.
+
+Opening a conversation schedules bounded local/attached image jobs. Remote jobs are allowed only by the saved app-wide reading preference (off by default) or an explicit one-conversation command. The reader notice enables the remembered preference; Settings disables it and cancels pending work. `preferences.json` uses the existing private, atomic config writer. Invalid preferences stay blocked and are preserved rather than overwritten.
+
+Remote HTTP requests use a dedicated client with no environment proxy, cookies, mail credentials, or Referer. Every DNS answer is checked before dialing a pinned public address, including on public redirects. Private destinations, HTTPS downgrades, redirect loops, oversized responses, and unsupported raster types are rejected. MIME image fetches use read-only selection, UIDVALIDITY validation, and BODY.PEEK.
+
+The demo includes an embedded picture in its first conversation and a simulated remote picture in **A few photos from the coast**. The simulated source goes through the regular consent UI, but the demo loader supplies a local raster and rejects other network/attachment requests. Demo reading preferences are session-only and do not read or overwrite the real preference file.
+
+Decoded dimensions are checked before full pixel allocation, then pixels are reduced for a bounded in-memory cache. Truecolor half-block previews use the regular TUI layout so scrolling, resizing, and redraws work without graphics-protocol support. Background jobs carry generations; hiding images or leaving a conversation cancels work and stale completions cannot reopen previews or populate another message. The reducer schedules automatic loading after both navigation and live sync, without repeatedly retrying failures.

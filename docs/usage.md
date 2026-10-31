@@ -11,7 +11,30 @@
 - Opening a conversation searches all server folders for its Message-ID, References, and In-Reply-To relationships, including older parents beyond the inbox page. Copies with the same Message-ID display once in the conversation. Unrelated messages are not merged merely because they share a subject.
 - Opening a thread marks its messages read. **u** toggles read/unread; **s** toggles starred. Changes are saved locally before being queued for the server. Temporary disconnections retain the queue. UIDVALIDITY checks prevent writes from targeting a different message after the server rebuilds a mailbox.
 - Explorer and inbox unread counts come from server message counts, so they cover older, unloaded pages too. Pending local changes update those counts immediately.
-- Mail is fetched with **BODY.PEEK**. Background downloads and previews do not mark messages read. HTML is converted to readable terminal text; scripts, styles, remote images, and tracking pixels are not loaded. Attachments are listed by name.
+- Mail is fetched with **BODY.PEEK**. Background downloads and previews do not mark messages read. HTML is converted to readable terminal text; scripts and styles are not executed. Embedded and attached image previews load when you open a conversation; remote images follow your reading preference. Other attachments are listed by name.
+
+### Images
+
+Embedded CID images, data images, and image attachments load inline when you open a conversation. Remote images are blocked by default. The first time you encounter them, a notice above the message offers a distinct **Always show images** button. Click the button, or press **I** / **`:images`**, to load images and remember the choice for all accounts and future launches. The button stays visible as you scroll until you enable images; the explanation and surrounding text are not click targets.
+
+Press **S** or **`:settings`** to open reading settings. **Space/Enter** toggles **Always show remote images**; **h/l** turns it off/on, and **Esc** returns. Turning it off cancels pending image loads and hides remote previews, including cached ones. Image hosts can see when you open mail after enabling it. Known hidden and tracking-sized HTML images are skipped.
+
+PNG, JPEG, GIF (first frame), and WebP are supported. Previews use terminal colour cells and resize with the reader; a truecolor terminal is recommended.
+
+To try both image flows locally, run `./hane demo --no-splash`:
+
+1. Open the first conversation to see an embedded image load automatically.
+2. Go back and open **A few photos from the coast** in **Personal / Inbox** (the fifth conversation).
+3. Click **Always show images** above the message. The sample photo appears inline.
+4. Press **S**, turn the setting off with **h**, and press **Esc**. The photo is hidden and the button returns.
+
+The demo uses local pictures and never contacts an image host. It starts with remote-image samples hidden each time; changes to demo settings last only for that session and do not affect your mailbox preferences.
+
+Only public HTTP(S) sources are fetched, with DNS validation on every connection and redirect. Local/private-network sources, active formats such as SVG, and oversized images are refused.
+
+Previews are cached in memory for the current session. Offline mode displays already loaded previews and embedded data images without fetching remote or attached images. Conversations preview up to 32 images, with an 8 MiB limit per image, a 32 MiB download budget, and a 45-second loading timeout. Failed images do not retry automatically; **I** retries while enabling the saved remote-image preference. Advanced commands **`:loadimages`** and **`:hideimages`** show/retry or hide only the current conversation without changing the saved preference. Normal navigation and scrolling continue while images load. Older cached messages discover image metadata on the next sync, which fetches text and MIME metadata only.
+
+The preference is stored privately in `preferences.json` in Hane's existing config directory (`~/.config/sorakyaku` on Linux, `~/Library/Application Support/sorakyaku` on macOS). Rendered previews are kept in memory.
 
 ![Live mailbox layout using fictional preview data](live-mail.png)
 
@@ -83,6 +106,8 @@ SMTP acceptance confirms submission to the server, not final delivery to the rec
 | `L` / `:older` | Fetch 100 older messages in the folder |
 | `/` | Search downloaded mail; Esc clears |
 | `u`; `s` | Toggle unread; toggle starred |
+| `I` / `:images` | Always show remote images; retry failed previews |
+| `S` / `:settings` | Reading settings, including remote images on/off |
 | `dd` / Delete / `:delete` | Confirm move to Trash, or delete a saved local draft |
 | `Q` / `:queue` | Open pending Trash moves and their status |
 | `r`; `c` / `:new` | Reply/resume draft; new message |
@@ -136,7 +161,7 @@ Corrupt or unsupported mail storage is preserved and blocks startup instead of b
 
 ## Current limits
 
-- Plain-text replies and new messages; no attachment downloads/uploads, HTML composition, Bcc, OAuth, permanent deletion, or general folder moves yet.
+- Plain-text replies and new messages; image attachments can be previewed, but general attachment downloads/uploads, HTML composition, Bcc, OAuth, permanent deletion, and general folder moves are not available yet.
 - Drafts are local to this device. The server Drafts folder can be read, but server draft editing/upload is not implemented.
 - Search covers downloaded mail. Load older pages with L to expand it.
 - Message text downloads are limited to 1 MiB of encoded input shared across up to 16 text parts, and 2 MiB of decoded text. The reader labels truncated text. Very large or deeply malformed conversations stop at 500 referenced IDs / 12 lookup rounds with an incomplete-thread notice.

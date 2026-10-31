@@ -13,6 +13,19 @@ out = [f'<svg xmlns="http://www.w3.org/2000/svg" width="{width*cell+margin*2}" h
        '<rect width="100%" height="100%" fill="#0b162b"/>',
        '<g font-family="JetBrainsMono Nerd Font, monospace" font-size="14">']
 fg, bg, weight = "#b5d5ff", "#0b162b", "normal"
+
+def palette_color(index):
+    basic = ["#000000", "#800000", "#008000", "#808000", "#000080", "#800080", "#008080", "#c0c0c0",
+             "#808080", "#ff0000", "#00ff00", "#ffff00", "#0000ff", "#ff00ff", "#00ffff", "#ffffff"]
+    if index < 16:
+        return basic[max(0, index)]
+    if index >= 232:
+        level = min(255, 8 + 10 * (index - 232))
+        return "#%02x%02x%02x" % (level, level, level)
+    value = index - 16
+    levels = [0, 95, 135, 175, 215, 255]
+    return "#%02x%02x%02x" % (levels[value // 36], levels[value // 6 % 6], levels[value % 6])
+
 for y, line in enumerate(lines):
     x, pos = 0, 0
     for match in list(escape.finditer(line)) + [None]:
@@ -39,6 +52,13 @@ for y, line in enumerate(lines):
                 fg = "#b5d5ff"
             elif code == 49:
                 bg = "#0b162b"
+            elif code in (38, 48) and codes[i+1:i+2] == [5] and i+2 < len(codes):
+                color = palette_color(codes[i+2])
+                if code == 38:
+                    fg = color
+                else:
+                    bg = color
+                i += 2
             elif code in (38, 48) and codes[i+1:i+2] == [2] and i+4 < len(codes):
                 color = "#%02x%02x%02x" % tuple(codes[i+2:i+5])
                 if code == 38:

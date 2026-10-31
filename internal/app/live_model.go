@@ -526,7 +526,7 @@ func (m *model) rebuildLive() {
 					}
 				}
 			}
-			threads = append(threads, Thread{ID: d.ID, Account: index, Folder: localDraftFolder, Subject: d.Subject, LocalDraft: true, Remote: true, ReplyTo: parent, ReplyID: d.ReplyID, References: d.References, Recipient: d.To, Messages: []Message{{"You", m.accounts[index].Address, d.Body, d.Updated}}})
+			threads = append(threads, Thread{ID: d.ID, Account: index, Folder: localDraftFolder, Subject: d.Subject, LocalDraft: true, Remote: true, ReplyTo: parent, ReplyID: d.ReplyID, References: d.References, Recipient: d.To, Messages: []Message{{"You", m.accounts[index].Address, d.Body, d.Updated, ""}}})
 		}
 		out = append(out, threads...)
 	}
@@ -603,7 +603,7 @@ func buildMailThreads(index int, key string, records []remoteMail, old []Thread)
 			folders[r.Ref.Folder] = true
 		}
 		for folder := range folders {
-			t := Thread{ID: stableMailID(key + folder + group), Account: index, Folder: folder, Subject: rs[0].Subject, Remote: true}
+			t := Thread{ID: stableMailID(key + folder + group), Account: index, Folder: folder, Subject: rs[0].Subject, Remote: true, ImageBodies: map[string]messageImages{}}
 			seen := map[string]bool{}
 			for _, r := range rs {
 				t.Refs = append(t.Refs, r.Ref)
@@ -612,8 +612,11 @@ func buildMailThreads(index int, key string, records []remoteMail, old []Thread)
 					t.Starred = t.Starred || r.Starred
 				}
 				if !seen[r.MessageID] {
-					t.Messages = append(t.Messages, Message{r.Sender, r.From, r.Body, r.Received})
+					t.Messages = append(t.Messages, Message{Sender: r.Sender, Address: r.From, Body: r.Body, Received: r.Received, ID: r.MessageID})
 					t.RemoteIDs = append(t.RemoteIDs, r.MessageID)
+					if len(r.Images) > 0 {
+						t.ImageBodies[r.MessageID] = messageImages{Text: r.ImageBody, Images: r.Images, Ref: r.Ref}
+					}
 					seen[r.MessageID] = true
 				}
 			}
@@ -887,7 +890,19 @@ func (m *model) finishLiveSend(msg liveSendMsg) {
 
 // Wrap the existing UI reducer so every navigation route (including mouse and
 // Vim prefixes) schedules the same live operations and draft autosave.
-func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m model) Update(msg tea.Msg) (nextModel tea.Model, nextCmd tea.Cmd) {
+	defer func() {
+		if next, ok := nextModel.(model); ok {
+			next.cancelImagesIfNeeded()
+			if auto := next.automaticImages(); auto != nil {
+				nextCmd = tea.Batch(nextCmd, auto)
+			}
+			nextModel = next
+		}
+	}()
+	if result, ok := msg.(imageLoadedMsg); ok {
+		return m.finishImage(result)
+	}
 	if m.live == nil {
 		return m.updateUI(msg)
 	}

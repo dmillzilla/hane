@@ -191,6 +191,23 @@ func decodeTextPart(p textPart, data []byte) string {
 	}
 	return body
 }
+
+// decodeTextSource preserves HTML structure for image placement. It only
+// decodes an already fetched MIME text part; it never follows image sources.
+func decodeTextSource(p textPart, data []byte) string {
+	var h message.Header
+	h.Set("Content-Type", mime.FormatMediaType(p.Type, p.Params))
+	h.Set("Content-Transfer-Encoding", p.Encoding)
+	e, _ := message.New(h, bytes.NewReader(data))
+	if e == nil {
+		return ""
+	}
+	content, err := io.ReadAll(io.LimitReader(e.Body, 2<<20))
+	if err != nil {
+		return ""
+	}
+	return string(content)
+}
 func makeWire(c AccountConfig, o outgoingMail) ([]byte, []string, error) {
 	if strings.ContainsAny(o.To+o.Subject, "\r\n\x00") {
 		return nil, nil, fmt.Errorf("Recipients and subject must each be a single line.")

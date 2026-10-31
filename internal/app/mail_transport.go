@@ -193,12 +193,20 @@ func fetchLiveMail(im *client.Client, folder string, validity uint32, uids []uin
 	var out []remoteMail
 	for _, f := range result {
 		r := f.r
-		if !r.BodyLoaded {
+		if !r.BodyLoaded || !r.ImagesIndexed {
 			parts, attachments := readableParts(f.bs)
+			imageParts, htmlPart := imageMIMEParts(f.bs)
 			tooManyParts := len(parts) > 16
 			r.Attachments = attachments
 			if len(parts) > 16 {
 				parts = parts[:16]
+			}
+			bodyParts := map[string]bool{}
+			for _, part := range parts {
+				bodyParts[fmt.Sprint(part.Path)] = true
+			}
+			if htmlPart != nil && !bodyParts[fmt.Sprint(htmlPart.Path)] && len(parts) < 16 {
+				parts = append(parts, *htmlPart)
 			}
 			partLimit := (1 << 20) / max(1, len(parts))
 			var sections []*imap.BodySectionName
@@ -209,6 +217,7 @@ func fetchLiveMail(im *client.Client, folder string, validity uint32, uids []uin
 				items = append(items, s.FetchItem())
 			}
 			var body []string
+			var htmlSource string
 			if len(parts) > 0 {
 				bodyCh := make(chan *imap.Message, 1)
 				bodyDone := make(chan error, 1)
@@ -220,10 +229,15 @@ func fetchLiveMail(im *client.Client, folder string, validity uint32, uids []uin
 						if lit := m.GetBody(s); lit != nil {
 							data, _ := io.ReadAll(io.LimitReader(lit, int64(partLimit)))
 							text := decodeTextPart(parts[i], data)
+							if parts[i].Type == "text/html" && htmlSource == "" {
+								htmlSource = decodeTextSource(parts[i], data)
+							}
 							if parts[i].Size > uint32(partLimit) {
 								text += "\n[Text part truncated to keep this message within its 1 MiB download limit.]"
 							}
-							body = append(body, text)
+							if bodyParts[fmt.Sprint(parts[i].Path)] {
+								body = append(body, text)
+							}
 						}
 					}
 				}
@@ -245,8 +259,14 @@ func fetchLiveMail(im *client.Client, folder string, validity uint32, uids []uin
 				r.Body = "[No readable text in this message.]"
 			}
 			if len(attachments) > 0 {
-				r.Body += "\n\nAttachments: " + strings.Join(attachments, ", ") + "\n[Attachment downloads are not supported yet.]"
+				r.Body += "\n\nAttachments: " + strings.Join(attachments, ", ")
+				if len(imageParts) > 0 {
+					r.Body += "\n[Image attachments appear inline in the reader. Other downloads are not supported yet.]"
+				} else {
+					r.Body += "\n[Attachment downloads are not supported yet.]"
+				}
 			}
+			indexMailImages(&r, imageParts, htmlSource)
 			r.BodyLoaded = true
 		}
 		out = append(out, r)
@@ -449,7 +469,7 @@ func (b imapTransport) Sync(ctx context.Context, c AccountConfig, password strin
 		old := recordMap(res.Data)
 		var need []uint32
 		for _, id := range all {
-			if r, ok := old[(mailRef{req.Folder, box.UidValidity, id}).key()]; !ok || !r.BodyLoaded {
+			if r, ok := old[(mailRef{req.Folder, box.UidValidity, id}).key()]; !ok || !r.BodyLoaded || !r.ImagesIndexed {
 				need = append(need, id)
 			}
 		}
@@ -552,7 +572,7 @@ func expandRemoteThread(im *client.Client, a *accountMail, seed string) error {
 				var need []uint32
 				for _, id := range found {
 					ref := mailRef{folder.Name, box.UidValidity, id}
-					if r, ok := old[ref.key()]; !ok || !r.BodyLoaded {
+					if r, ok := old[ref.key()]; !ok || !r.BodyLoaded || !r.ImagesIndexed {
 						need = append(need, id)
 					} else {
 						frontier = append(frontier, r.MessageID)
