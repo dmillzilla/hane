@@ -31,6 +31,9 @@ type remoteMail struct {
 	Received                                      time.Time
 	Seen, Starred, BodyLoaded                     bool
 	Attachments                                   []string
+	Images                                        []messageImage
+	ImageBody                                     string
+	ImagesIndexed                                 bool
 }
 type folderInfo struct {
 	Name, Role              string

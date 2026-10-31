@@ -35,6 +35,10 @@ func bold(s string, c color.Color) string {
 	return lip.NewStyle().Bold(true).Foreground(c).Render(s)
 }
 
+func imageNoticeButton(s string) string {
+	return lip.NewStyle().Bold(true).Foreground(ink).Background(teal).Render(s)
+}
+
 // Nested text styles reset their background. Restore the containing surface
 // after those resets so colors fill the pane, including its empty space.
 func onSurface(s string, bg color.Color) string {
@@ -103,9 +107,15 @@ func (m model) readerLines() []string {
 	if t := m.current(); t != nil && t.QueueID != "" {
 		return m.queueReaderLines(t, m.readerWidth())
 	}
-	return threadLines(m.current(), m.readerWidth())
+	return m.threadImageLines(m.current(), m.readerWidth())
 }
 func threadLines(t *Thread, w int) []string {
+	return formattedThreadLines(t, w, nil)
+}
+func (m model) threadImageLines(t *Thread, w int) []string {
+	return formattedThreadLines(t, w, func(i int, msg Message) []string { return m.imageBodyLines(t, i, msg, w) })
+}
+func formattedThreadLines(t *Thread, w int, render func(int, Message) []string) []string {
 	if t == nil {
 		return nil
 	}
@@ -117,15 +127,23 @@ func threadLines(t *Thread, w int) []string {
 		}
 		out = append(out, joinSides(bold(msg.Sender, cyan), styled(msg.Received.Local().Format("Jan 02 · 15:04"), muted), w))
 		out = append(out, styled(msg.Address, muted), styled(fmt.Sprintf("%s  /  %02d", label, i+1), violet), "")
-		for _, line := range strings.Split(ansi.Wrap(msg.Body, w, ""), "\n") {
-			out = append(out, styled(line, readerText))
+		if render != nil {
+			out = append(out, render(i, msg)...)
+		} else {
+			for _, line := range strings.Split(ansi.Wrap(msg.Body, w, ""), "\n") {
+				out = append(out, styled(line, readerText))
+			}
 		}
 		out = append(out, "", gradient(strings.Repeat("─", w), 0), "")
 	}
 	return out
 }
 func (m *model) clampScroll() {
-	m.scroll = max(0, min(m.scroll, max(0, len(m.readerLines())-(m.bodyHeight()-4))))
+	m.scroll = max(0, min(m.scroll, max(0, len(m.readerLines())-m.readerVisibleLines())))
+}
+
+func (m model) readerVisibleLines() int {
+	return max(1, m.bodyHeight()-4-len(m.imageNoticeLines()))
 }
 
 func paneLines(lines []string, w, h int, separator bool, surface ...color.Color) string {
@@ -368,9 +386,12 @@ func (m model) readerView(w int) string {
 	if op, ok := m.queueOperation(t); ok {
 		lines[1] = styled(m.trashStatus(t.Account, op), cyan)
 	}
+	for _, line := range m.imageNoticeLines() {
+		lines = append(lines, " "+line)
+	}
 	content := m.readerLines()
 	start := min(m.scroll, len(content))
-	end := min(len(content), start+m.bodyHeight()-4)
+	end := min(len(content), start+m.readerVisibleLines())
 	for _, line := range content[start:end] {
 		lines = append(lines, " "+line)
 	}
@@ -378,10 +399,10 @@ func (m model) readerView(w int) string {
 		lines = append(lines, "")
 	}
 	percent := 100
-	if maxScroll := len(content) - (m.bodyHeight() - 4); maxScroll > 0 {
+	if maxScroll := len(content) - m.readerVisibleLines(); maxScroll > 0 {
 		percent = min(100, m.scroll*100/maxScroll)
 	}
-	lines = append(lines, styled(fmt.Sprintf(" r reply   h inbox                   %d%%", percent), dim))
+	lines = append(lines, styled(fmt.Sprintf(" r reply   S settings   h inbox   %d%%", percent), dim))
 	if t.QueueID != "" {
 		lines[len(lines)-1] = styled(" R retry   h back to queue", dim)
 	}
@@ -402,8 +423,13 @@ func (m model) View() tea.View {
 		if m.compose != nil {
 			header[3] = joinSides(styled(" Writing · "+m.accounts[m.account].Name, muted), styled(m.notice, oceanText), m.width)
 		}
+		if m.settingsOpen {
+			header[3] = styled(" Settings / Reading", muted)
+		}
 		body := ""
-		if m.help {
+		if m.settingsOpen {
+			body = m.settingsView()
+		} else if m.help {
 			body = m.helpView()
 		} else if m.compose != nil {
 			body = m.composeView()
@@ -431,6 +457,9 @@ func (m model) View() tea.View {
 		if m.prompt == ":" {
 			mode = "Command"
 		}
+		if m.settingsOpen {
+			mode = "Settings"
+		}
 		badge := lip.NewStyle().Foreground(ink).Background(teal).Bold(true).Render(" " + mode + " ")
 		status := onSurface(joinSides(badge+styled("  "+m.notice, oceanText), styled(fmt.Sprintf(" %d/%d  ", min(m.selected+1, len(m.folderThreads())), len(m.folderThreads())), cyan), m.width), statusPane)
 		hint := styled(" dd trash   r reply   / search   \\nt tree   h j k l navigate   ? help   :q quit", muted)
@@ -455,11 +484,17 @@ func (m model) View() tea.View {
 				hint = styled(" Enter details   :canceldelete show originals   h back   \\nt tree", cyan)
 			}
 		}
+		if m.reading && m.compose == nil && m.focus == threadPane && m.folder != syncQueueFolder {
+			hint = styled(" S settings   I show/retry images   j/k scroll   r reply   h back", muted)
+		}
 		if m.prompt != "" {
 			hint = styled(" "+m.prompt+m.input+"▏", cyan)
 		}
 		if m.compose != nil {
 			status, hint = m.editorFooter()
+		}
+		if m.settingsOpen {
+			hint = styled(" Space/Enter toggle   h off   l on   Esc back", muted)
 		}
 		content = strings.Join(header, "\n") + "\n" + body + "\n" + fit(status, m.width) + "\n" + fit(hint, m.width)
 	}
@@ -561,6 +596,8 @@ func (m model) helpView() string {
 		{"dd / Delete / :delete", "Move cached mail in this folder to Trash; delete local draft"},
 		{"Q / :queue", "View pending Trash moves, failures, and recovery details"},
 		{"r", "Reply or re-open a saved draft"},
+		{"I / :images", "Always show remote images; retry failed previews"},
+		{"S / :settings", "Reading settings; turn remote images on or off"},
 		{"A / :addaccount", "Add account; also at the bottom of Explorer"},
 		{"e on account", "Edit settings and check sign-in again"},
 		{"Normal: :w", "Save draft; configured accounts also autosave"},

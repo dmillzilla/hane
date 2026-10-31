@@ -19,6 +19,7 @@ type Account struct {
 type Message struct {
 	Sender, Address, Body string
 	Received              time.Time
+	ID                    string
 }
 type Thread struct {
 	QueueID            string
@@ -33,6 +34,7 @@ type Thread struct {
 	Messages           []Message
 	ReplyTo            int
 	Recipient          string
+	ImageBodies        map[string]messageImages
 }
 
 func (t *Thread) newest() Message {
@@ -107,12 +109,12 @@ func seed(now time.Time) ([]Account, []Thread) {
 				if a == 1 && f == 0 && i == 0 {
 					subject = "Prototype review / navigation and rhythm"
 				}
-				msg := Message{item.sender, strings.ToLower(strings.ReplaceAll(item.sender, " ", ".")) + "@example.com", item.body, received}
+				msg := Message{item.sender, strings.ToLower(strings.ReplaceAll(item.sender, " ", ".")) + "@example.com", item.body, received, ""}
 				messages := []Message{msg}
 				if i%2 == 0 {
 					messages = append(messages,
-						Message{"You", accounts[a].Address, "Thanks for putting this together. I like the direction, especially the small details.\n\nCould you share the updated plan when you have a moment? I'd love to make sure we leave enough time to enjoy it.\n\nDaniel", received.Add(-3 * time.Hour)},
-						Message{item.sender, msg.Address, "Hey Daniel,\n\nI've been thinking about our conversation and started gathering a few ideas. There is something nice about giving ourselves a little more space to explore.\n\nI'll send a more detailed update tomorrow. In the meantime, tell me if there's anything you'd like to include.\n\nTalk soon,\n" + strings.Fields(item.sender)[0], received.Add(-26 * time.Hour)})
+						Message{"You", accounts[a].Address, "Thanks for putting this together. I like the direction, especially the small details.\n\nCould you share the updated plan when you have a moment? I'd love to make sure we leave enough time to enjoy it.\n\nDaniel", received.Add(-3 * time.Hour), ""},
+						Message{item.sender, msg.Address, "Hey Daniel,\n\nI've been thinking about our conversation and started gathering a few ideas. There is something nice about giving ourselves a little more space to explore.\n\nI'll send a more detailed update tomorrow. In the meantime, tell me if there's anything you'd like to include.\n\nTalk soon,\n" + strings.Fields(item.sender)[0], received.Add(-26 * time.Hour), ""})
 				}
 				if folder == "Sent" {
 					messages[0].Sender = "You"

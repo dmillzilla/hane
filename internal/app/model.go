@@ -62,11 +62,17 @@ type model struct {
 	configPath, configError                              string
 	credentials                                          credentialStore
 	background                                           context.Context
+	images                                               *imageState
+	preferences                                          readerPreferences
+	preferencesPath, preferencesReadError, settingsError string
+	settingsOpen                                         bool
+	demo                                                 bool
 }
 
 func newModel(now time.Time) model {
 	a, t := seed(now)
-	return model{accounts: a, threads: t, now: now, width: 120, height: 36, folder: "Inbox", expanded: []bool{true, true}, treeOpen: true, treeCursor: 1, notice: "Welcome aboard. Press ? for the keymap."}
+	addDemoImage(t)
+	return model{accounts: a, threads: t, images: newImageState(), preferences: readerPreferences{Version: 1}, now: now, width: 120, height: 36, folder: "Inbox", expanded: []bool{true, true}, treeOpen: true, treeCursor: 1, notice: "Welcome aboard. Press ? for the keymap."}
 }
 func tick() tea.Cmd {
 	return tea.Tick(70*time.Millisecond, func(t time.Time) tea.Msg { return tickMsg(t) })
@@ -206,6 +212,11 @@ func (m model) updateUI(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if result, ok := msg.(accountCheckMsg); ok {
 		return m.finishAccountCheck(result)
 	}
+	if m.settingsOpen {
+		if _, resizing := msg.(tea.WindowSizeMsg); !resizing {
+			return m.handleSettings(msg)
+		}
+	}
 	if m.setup != nil {
 		return m.handleAccountSetup(msg)
 	}
@@ -267,6 +278,11 @@ func (m model) updateUI(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 		if msg.Button == tea.MouseLeft {
+			if m.imageNoticeClicked(msg.X, msg.Y) {
+				m.focus = threadPane
+				cmd := m.alwaysShowImages()
+				return m, cmd
+			}
 			m.click(msg.X, msg.Y)
 		}
 	case tea.MouseWheelMsg:
@@ -357,6 +373,11 @@ func (m model) updateUI(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 		switch key {
+		case "I":
+			cmd := m.alwaysShowImages()
+			return m, cmd
+		case "S":
+			m.openSettings()
 		case "Q":
 			m.openSyncQueue()
 		case "R", "f5":
@@ -545,6 +566,18 @@ func (m model) handlePrompt(key tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			m.focus = listPane
 		} else {
 			switch strings.TrimSpace(m.input) {
+			case "images":
+				m.prompt, m.input = "", ""
+				cmd := m.alwaysShowImages()
+				return m, cmd
+			case "settings":
+				m.openSettings()
+			case "loadimages":
+				m.prompt, m.input = "", ""
+				cmd := m.loadImages()
+				return m, cmd
+			case "hideimages":
+				m.hideImages()
 			case "queue":
 				m.openSyncQueue()
 			case "delete", "trash":
@@ -664,7 +697,7 @@ func (m *model) saveDraft() bool {
 		id = m.nextID()
 	}
 	m.removeSavedDraft(d.savedID)
-	m.threads = append(m.threads, Thread{ID: id, Account: d.account, Folder: "Drafts", Subject: d.subject, ReplyTo: d.threadID, Recipient: d.to, Messages: []Message{{"You", m.accounts[d.account].Address, d.body, time.Now()}}})
+	m.threads = append(m.threads, Thread{ID: id, Account: d.account, Folder: "Drafts", Subject: d.subject, ReplyTo: d.threadID, Recipient: d.to, Messages: []Message{{"You", m.accounts[d.account].Address, d.body, time.Now(), ""}}})
 	normalize(m.threads)
 	d.savedID = id
 	d.savedBody = d.body
@@ -704,7 +737,7 @@ func (m *model) sendDemo() {
 		m.notice = "Add a message before sending."
 		return
 	}
-	msg := Message{"You", m.accounts[d.account].Address, d.body, time.Now()}
+	msg := Message{"You", m.accounts[d.account].Address, d.body, time.Now(), ""}
 	m.removeSavedDraft(d.savedID)
 	for i := range m.threads {
 		if m.threads[i].ID == d.threadID {

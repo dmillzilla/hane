@@ -29,6 +29,10 @@ type Options struct {
 // Run opens the terminal client with already validated options.
 func Run(options Options) error {
 	m := newModel(time.Now())
+	m.demo = options.Demo
+	if !options.Demo {
+		m.loadPreferences()
+	}
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	m.background = ctx

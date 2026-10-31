@@ -47,6 +47,8 @@ Use an app-specific password for [iCloud](https://support.apple.com/en-us/102525
 
 Want to try it first? Run `hane demo` for a sample inbox that never connects or sends mail.
 
+To try the image button, open **A few photos from the coast** in the demo and click **Always show images**. The sample is local, and demo settings reset when you quit.
+
 ## Everyday use
 
 Use these keys to navigate Hane's TUI:
@@ -59,6 +61,7 @@ Use these keys to navigate Hane's TUI:
 | `Space n t` | Show or hide the account explorer |
 | `/` | Search downloaded mail |
 | `r` / `c` | Reply / compose a new message |
+| `I` / `S` | Always show remote images / reading settings |
 | `u` / `s` | Toggle unread / starred |
 | `dd` | Move a conversation to Trash after confirmation |
 | `R` / `L` | Sync now / load older messages |
@@ -69,6 +72,8 @@ Use these keys to navigate Hane's TUI:
 In the editor, press **i** to type and **Esc** to return to Normal mode. Use **`:to friend@example.com`** and **`:subject Hello`** to set a new message's headers. **Ctrl+s** saves; **Ctrl+y** sends. Drafts autosave locally, and closing the editor offers to save or discard unsaved changes.
 
 Mail syncs in the background every minute. Opening a conversation marks it read; previews do not. Use `hane --offline` to read cached mail and write drafts without connecting.
+
+Embedded and attached images appear inline when you open a conversation. When remote images are hidden, click the **Always show images** button above the message or press **I** once. Hane remembers the choice for all messages, including after restarting. Press **S** for reading settings to turn them off. Image hosts can see those requests. PNG, JPEG, GIF (first frame), and WebP previews use terminal colour cells; the pixels are cached only for the current session.
 
 For the complete keymap, account setup, and delivery recovery instructions, see the [usage guide](docs/usage.md).
 
@@ -110,6 +115,6 @@ hane help passwords
 
 The previous `--demo`, `--version`, `--sync-once`, `--check-connection`, and `--password-setup` flags remain supported as command aliases.
 
-Connection checks and `hane sync` do not send outgoing messages. Search covers downloaded mail; use **L** to load more. Attachments are listed but cannot yet be downloaded or attached, and composition is plain text. Drafts are stored locally rather than in the server's Drafts folder.
+Connection checks and `hane sync` do not send outgoing messages. Search covers downloaded mail; use **L** to load more. Image attachments can be previewed; general file downloads and uploads are not available yet, and composition is plain text. Drafts are stored locally rather than in the server's Drafts folder.
 
 See [development](docs/development.md) for the source layout, tests, and release builds.
